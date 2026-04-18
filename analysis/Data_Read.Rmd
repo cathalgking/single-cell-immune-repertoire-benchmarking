@@ -1,0 +1,209 @@
+---
+title: "Data Read in"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Libraries
+
+```{r}
+library(scRepertoire)
+library(Seurat)
+library(Matrix)
+library(ggplot2)
+```
+
+Read in data. Then, create single-cell (Seurat) objects from Parse and 10x data.
+
+The Seurat package has a convenient function for reading in Parse data: `Seurat::ReadParseBio()`
+
+
+
+Parse data as output from the split-pipe pipeline.
+
+```{r}
+# Define the base directory once at the top
+base_dir <- "PATH/benchmark/parse/outs"
+
+# Sample 234
+sid <- "234"
+data_path <- file.path(base_dir, sid, "WT")
+
+mat <- ReadParseBio(data_path)
+rownames(mat)[rownames(mat) == ""] <- "unknown"
+cell_meta <- read.csv(file.path(data_path, "cell_metadata.csv"), row.names = 1)
+
+seu_234 <- CreateSeuratObject(mat, names.field = 0, meta.data = cell_meta, project = paste0("Parse_", sid))
+seu_234 <- RenameCells(seu_234, new.names = paste0("S", sid, "_", rownames(seu_234@meta.data)))
+
+# Sample 236
+sid <- "236"
+data_path <- file.path(base_dir, sid, "WT")
+
+mat <- ReadParseBio(data_path)
+rownames(mat)[rownames(mat) == ""] <- "unknown"
+cell_meta <- read.csv(file.path(data_path, "cell_metadata.csv"), row.names = 1)
+
+seu_236 <- CreateSeuratObject(mat, names.field = 0, meta.data = cell_meta, project = paste0("Parse_", sid))
+seu_236 <- RenameCells(seu_236, new.names = paste0("S", sid, "_", rownames(seu_236@meta.data)))
+
+# Sample 237
+sid <- "237"
+data_path <- file.path(base_dir, sid, "WT")
+
+mat <- ReadParseBio(data_path)
+rownames(mat)[rownames(mat) == ""] <- "unknown"
+cell_meta <- read.csv(file.path(data_path, "cell_metadata.csv"), row.names = 1)
+
+seu_237 <- CreateSeuratObject(mat, names.field = 0, meta.data = cell_meta, project = paste0("Parse_", sid))
+seu_237 <- RenameCells(seu_237, new.names = paste0("S", sid, "_", rownames(seu_237@meta.data)))
+
+# Sample 238
+sid <- "238"
+data_path <- file.path(base_dir, sid, "WT")
+
+mat <- ReadParseBio(data_path)
+rownames(mat)[rownames(mat) == ""] <- "unknown"
+cell_meta <- read.csv(file.path(data_path, "cell_metadata.csv"), row.names = 1)
+
+seu_238 <- CreateSeuratObject(mat, names.field = 0, meta.data = cell_meta, project = paste0("Parse_", sid))
+seu_238 <- RenameCells(seu_238, new.names = paste0("S", sid, "_", rownames(seu_238@meta.data)))
+
+# Merge into 1 (Seurat) object. Cells will be combined.
+seu.combined <- merge(seu_234, y = c(seu_236, seu_237, seu_238))
+
+# Read in TCR data. 
+# The barcode report files are an output of split-pipe and contain clonotype information.
+
+# Sample 234
+sid <- "234"
+S234 <- read.csv(file.path(base_dir, sid, "D14/barcode_report.tsv"), sep = "\t")
+
+# Sample 236
+sid <- "236"
+S236 <- read.csv(file.path(base_dir, sid, "D14/barcode_report.tsv"), sep = "\t")
+
+# Sample 237
+sid <- "237"
+S237 <- read.csv(file.path(base_dir, sid, "D14/barcode_report.tsv"), sep = "\t")
+
+# Sample 238
+sid <- "238"
+S238 <- read.csv(file.path(base_dir, sid, "D14/barcode_report.tsv"), sep = "\t")
+
+parse.contig_list <- list(S234, S236, S237, S238)
+# generate a contig list
+parse.contig_list <- loadContigs(input = parse.contig_list,
+                                 format = "ParseBio")
+
+# combine expression will add the immune receptor info (from combineTCR) to a Seurat or SCE object
+parse.TCR <- combineTCR(parse.contig_list, samples = c("S234", "S236", "S237", "S238"), filterMulti = T)
+
+#Adding clonotypes to meta data of the merged Seurat object
+seu_combined_Parse <- combineExpression(parse.TCR, seu.combined)
+```
+
+Create single-cell (Seurat) objects from 10x data as output from the cellranger pipeline. 
+
+```{r}
+# Define the 10x base directory
+base_dir_10x <- "PATH/benchmark/10x"
+
+# QEH234
+sid <- "234"
+data_dir <- file.path(base_dir_10x, sid)
+list.files(data_dir)
+expression_matrix <- Read10X(data.dir = data_dir)
+seu_234 = CreateSeuratObject(counts = expression_matrix, project = paste0("TenX_", sid))
+seu_234 <- RenameCells(seu_234, new.names = paste0("S", sid, "_", rownames(seu_234@meta.data)))
+
+# QEH236
+sid <- "236"
+data_dir <- file.path(base_dir_10x, sid)
+list.files(data_dir)
+expression_matrix <- Read10X(data.dir = data_dir)
+seu_236 = CreateSeuratObject(counts = expression_matrix, project = paste0("TenX_", sid))
+seu_236 <- RenameCells(seu_236, new.names = paste0("S", sid, "_", rownames(seu_236@meta.data)))
+
+# QEH237
+sid <- "237"
+data_dir <- file.path(base_dir_10x, sid)
+list.files(data_dir)
+expression_matrix <- Read10X(data.dir = data_dir)
+seu_237 = CreateSeuratObject(counts = expression_matrix, project = paste0("TenX_", sid))
+seu_237 <- RenameCells(seu_237, new.names = paste0("S", sid, "_", rownames(seu_237@meta.data)))
+
+# QEH238
+sid <- "238"
+data_dir <- file.path(base_dir_10x, sid)
+list.files(data_dir)
+expression_matrix <- Read10X(data.dir = data_dir)
+seu_238 = CreateSeuratObject(counts = expression_matrix, project = paste0("TenX_", sid))
+seu_238 <- RenameCells(seu_238, new.names = paste0("S", sid, "_", rownames(seu_238@meta.data)))
+
+# merge into 1 seu object
+seu.combined <- merge(seu_234, y = c(seu_236, seu_237, seu_238))
+
+# read in contig files
+S234 <- read.csv(file.path(base_dir_10x, "234", "filtered_contig_annotations.csv"))
+S236 <- read.csv(file.path(base_dir_10x, "236", "filtered_contig_annotations.csv"))
+S237 <- read.csv(file.path(base_dir_10x, "237", "filtered_contig_annotations.csv"))
+S238 <- read.csv(file.path(base_dir_10x, "238", "filtered_contig_annotations.csv"))
+
+# Make a list of contigs
+Exp.contigs <- list(S234, S236, S237, S238)
+
+# Sort contigs into indivudal clonotypes by barcode
+combined.TCRs <- scRepertoire::combineTCR(Exp.contigs, samples = c("S234", "S236", "S237", "S238"), filterMulti = T)
+
+#Adding clonotypes to meta data of the merged Seurat object
+seu_combined_TenX <- combineExpression(combined.TCRs, seu.combined)
+```
+
+Merge 10x and Parse data to one Seurat object
+
+```{r}
+# first add metadata column "tech"
+seu_combined_Parse$tech <- "Parse"
+seu_combined_TenX$tech <- "10x"
+# one object
+combined.TCR <- c(seu_combined_Parse, seu_combined_TenX)
+# seu
+combined.TCR_seu_filt <- merge(seu_combined_Parse, y=seu_combined_TenX_filt)
+```
+
+Extra (optional)
+
+-JoinLayers within Seurat object. Important for some downstream analyses.
+
+-SingleCellExperiment is an alternative data object to Seurat. Better in some ways and also allows useful interaction with a lot of bioconductor packages. Convert with ```Seurat::as.SingleCellExperiment()```. However ```scRepetoire``` is used for downstream immune repertoire analysis and conveniently works with both objects.
+
+```{r}
+# seu obj layers
+seu_combined_Parse <- JoinLayers(object = seu_combined_Parse)
+seu_combined_TenX <- JoinLayers(object = seu_combined_TenX)
+combined.TCR_seu <- JoinLayers(object = combined.TCR_seu)
+# check meta-data
+head(meta_data, 2)
+
+# convert to SCE (bioconductor)
+library(SingleCellExperiment)
+library(scater)
+sce_combined <- as.SingleCellExperiment(x = combined.TCR_seu)
+sce_combined <- scater::logNormCounts(x = sce_combined)
+seu.combined2 <- as.Seurat(x = sce_combined)
+```
+
+Save data objects
+
+```{r, eval=FALSE}
+saveRDS(object = seu_combined_Parse, file = "seu_combined_Parse.rds")
+saveRDS(object = seu_combined_TenX, file = "seu_combined_10x.rds")
+saveRDS(object = combined.TCR_seu, file = "seu_combined_tech_benchmark.rds")
+saveRDS(object = combined.TCR_seu_filt, file = "seu_combined_filt.rds")
+```
