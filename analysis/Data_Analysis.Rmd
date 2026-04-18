@@ -1,0 +1,472 @@
+---
+title: "Data analysis"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Libraries
+
+```{r}
+library(Seurat)
+library(scRepertoire)
+library(cowplot)
+library(ggplot2)
+library(dplyr)
+```
+
+Data
+
+* Read in single-cell data object for analyses
+
+```{r}
+## Combined to 1 object
+# Data (DS)
+seu <- readRDS(file = "data/new_combined.TCR_seu.rds")
+seu
+
+# Data
+sc_bmark_orig <- readRDS(file = "data/seu_combined_tech_bmark.rds")
+# Convert Seurat metadata to data frames
+df_orig <- sc_bmark_orig@meta.data
+df_ds   <- sc_bmark@meta.data
+
+## By technology
+seu_parse <- readRDS("data/Parse_ds_seu.rds")
+seu_10x <- readRDS("data/10x_seu.rds")
+```
+
+Analyses
+
+* Gene/feature and transcript (nCount) analyses including MT and RP%
+
+```{r}
+# combined dataset
+seu[["percent.mt"]] <- PercentageFeatureSet(seu, pattern = "^MT-")
+VlnPlot(seu, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+VlnPlot(seu, features = c("nFeature_RNA"))
+
+# Split Seurat object by sample pairings
+samples_234 <- subset(seu, orig.ident %in% c("Parse_234", "TenX_234"))
+samples_236 <- subset(seu, orig.ident %in% c("Parse_236", "TenX_236"))
+samples_237 <- subset(seu, orig.ident %in% c("Parse_237", "TenX_237"))
+samples_238 <- subset(seu, orig.ident %in% c("Parse_238", "TenX_238"))
+
+# Reorder factors in each subset
+reorder_samples <- function(obj, levels) {
+    obj$orig.ident <- factor(obj$orig.ident, levels = levels)
+    return(obj)
+}
+
+# Apply
+samples_234 <- reorder_samples(samples_234, c("Parse_234", "TenX_234"))
+samples_236 <- reorder_samples(samples_236, c("Parse_236", "TenX_236"))
+samples_237 <- reorder_samples(samples_237, c("Parse_237", "TenX_237"))
+samples_238 <- reorder_samples(samples_238, c("Parse_238", "TenX_238"))
+
+####### nFeature (Genes per cell)
+
+# Create individual violin plots with customized colors and y-axis labels
+plot_234 <- VlnPlot(samples_234, features = "nFeature_RNA", group.by = "orig.ident") +
+    ggtitle("234") +
+    ylab("Genes per Cell") +
+    scale_fill_manual(values = c("Parse_234" = "#1F77B4", "TenX_234" = "#FF7F0E"))
+
+plot_236 <- VlnPlot(samples_236, features = "nFeature_RNA", group.by = "orig.ident") +
+    ggtitle("236") +
+    ylab("Genes per Cell") +
+    scale_fill_manual(values = c("Parse_236" = "#1F77B4", "TenX_236" = "#FF7F0E"))
+
+plot_237 <- VlnPlot(samples_237, features = "nFeature_RNA", group.by = "orig.ident") +
+    ggtitle("237") +
+    ylab("Genes per Cell") +
+    scale_fill_manual(values = c("Parse_237" = "#1F77B4", "TenX_237" = "#FF7F0E"))
+
+plot_238 <- VlnPlot(samples_238, features = "nFeature_RNA", group.by = "orig.ident") +
+    ggtitle("238") +
+    ylab("Genes per Cell") +
+    scale_fill_manual(values = c("Parse_238" = "#1F77B4", "TenX_238" = "#FF7F0E"))
+
+# Combine into grid
+combined_grid <- cowplot::plot_grid(plot_234, plot_236, plot_237, plot_238, ncol = 2)
+
+# Add a title to the grid
+cowplot::plot_grid(
+    cowplot::ggdraw() + cowplot::draw_label("Genes Detected per Cell by Sample and Technology", fontface = "bold", size = 16, hjust = 0.5),
+    combined_grid,
+    ncol = 1,
+    rel_heights = c(0.1, 1)
+)
+
+
+####### nCount (transcripts per cell)
+
+# Violin plots for nCount_RNA (Raw)
+plot_234 <- VlnPlot(samples_234, features = "nCount_RNA", group.by = "orig.ident") +
+  ggtitle("234") +
+  ylab("Transcripts per Cell") +
+  scale_fill_manual(values = c("Parse_234" = "#1F77B4", "TenX_234" = "#FF7F0E"))
+
+plot_236 <- VlnPlot(samples_236, features = "nCount_RNA", group.by = "orig.ident") +
+  ggtitle("236") +
+  ylab("Transcripts per Cell") +
+  scale_fill_manual(values = c("Parse_236" = "#1F77B4", "TenX_236" = "#FF7F0E"))
+
+plot_237 <- VlnPlot(samples_237, features = "nCount_RNA", group.by = "orig.ident") +
+  ggtitle("237") +
+  ylab("Transcripts per Cell") +
+  scale_fill_manual(values = c("Parse_237" = "#1F77B4", "TenX_237" = "#FF7F0E"))
+
+plot_238 <- VlnPlot(samples_238, features = "nCount_RNA", group.by = "orig.ident") +
+  ggtitle("238") +
+  ylab("Transcripts per Cell") +
+  scale_fill_manual(values = c("Parse_238" = "#1F77B4", "TenX_238" = "#FF7F0E"))
+
+# Combine into grid
+combined_grid <- cowplot::plot_grid(plot_234, plot_236, plot_237, plot_238, ncol = 2)
+
+# Add a title to the grid
+cowplot::plot_grid(
+  cowplot::ggdraw() + cowplot::draw_label("Transcripts Detected per Cell by Sample and Technology", fontface = "bold", size = 16, hjust = 0.5),
+  combined_grid,
+  ncol = 1,
+  rel_heights = c(0.1, 1)
+)
+
+####### nCount (transcripts per cell) log
+
+# Violin plots for nCount_RNA (Log)
+# Violin plots for nCount_RNA with log transformation
+plot_234 <- VlnPlot(samples_234, features = "nCount_RNA", group.by = "orig.ident", log = TRUE) +
+  ggtitle("234") +
+  ylab("Log(Transcripts per Cell)") +
+  scale_fill_manual(values = c("Parse_234" = "#1F77B4", "TenX_234" = "#FF7F0E"))
+
+plot_236 <- VlnPlot(samples_236, features = "nCount_RNA", group.by = "orig.ident", log = TRUE) +
+  ggtitle("236") +
+  ylab("Log(Transcripts per Cell)") +
+  scale_fill_manual(values = c("Parse_236" = "#1F77B4", "TenX_236" = "#FF7F0E"))
+
+plot_237 <- VlnPlot(samples_237, features = "nCount_RNA", group.by = "orig.ident", log = TRUE) +
+  ggtitle("237") +
+  ylab("Log(Transcripts per Cell)") +
+  scale_fill_manual(values = c("Parse_237" = "#1F77B4", "TenX_237" = "#FF7F0E"))
+
+plot_238 <- VlnPlot(samples_238, features = "nCount_RNA", group.by = "orig.ident", log = TRUE) +
+  ggtitle("238") +
+  ylab("Log(Transcripts per Cell)") +
+  scale_fill_manual(values = c("Parse_238" = "#1F77B4", "TenX_238" = "#FF7F0E"))
+
+# Combine into grid
+combined_grid <- cowplot::plot_grid(plot_234, plot_236, plot_237, plot_238, ncol = 2)
+
+# Add a title to the grid
+cowplot::plot_grid(
+  cowplot::ggdraw() + cowplot::draw_label("Log-Transformed Transcripts Detected per Cell by Sample and Technology", fontface = "bold", size = 16, hjust = 0.5),
+  combined_grid,
+  ncol = 1,
+  rel_heights = c(0.1, 1)
+)
+
+# Violin plots for nCount_RNA with y.max = 100000
+plot_234 <- VlnPlot(samples_234, features = "nCount_RNA", group.by = "orig.ident", y.max = 75000) +
+  ggtitle("234") +
+  ylab("Transcripts per Cell") +
+  scale_fill_manual(values = c("Parse_234" = "#1F77B4", "TenX_234" = "#FF7F0E"))
+
+plot_236 <- VlnPlot(samples_236, features = "nCount_RNA", group.by = "orig.ident", y.max = 75000) +
+  ggtitle("236") +
+  ylab("Transcripts per Cell") +
+  scale_fill_manual(values = c("Parse_236" = "#1F77B4", "TenX_236" = "#FF7F0E"))
+
+plot_237 <- VlnPlot(samples_237, features = "nCount_RNA", group.by = "orig.ident", y.max = 75000) +
+  ggtitle("237") +
+  ylab("Transcripts per Cell") +
+  scale_fill_manual(values = c("Parse_237" = "#1F77B4", "TenX_237" = "#FF7F0E"))
+
+plot_238 <- VlnPlot(samples_238, features = "nCount_RNA", group.by = "orig.ident", y.max = 75000) +
+  ggtitle("238") +
+  ylab("Transcripts per Cell") +
+  scale_fill_manual(values = c("Parse_238" = "#1F77B4", "TenX_238" = "#FF7F0E"))
+
+# Combine into grid
+combined_grid <- cowplot::plot_grid(plot_234, plot_236, plot_237, plot_238, ncol = 2)
+
+# Add a title to the grid
+cowplot::plot_grid(
+  cowplot::ggdraw() + cowplot::draw_label("Transcripts Detected per Cell by Sample and Technology <75k", fontface = "bold", size = 16, hjust = 0.5),
+  combined_grid,
+  ncol = 1,
+  rel_heights = c(0.1, 1)
+)
+
+
+####### Mitochondrial gene (MT) content per cell
+
+## MT content
+# Violin plots for percent.mt with y.max = 100000
+plot_234 <- VlnPlot(samples_234, features = "percent.mt", group.by = "orig.ident", y.max = 100000) +
+  ggtitle("234") +
+  ylab("Mitochondrial Content (%)") +
+  scale_fill_manual(values = c("Parse_234" = "#1F77B4", "TenX_234" = "#FF7F0E"))
+
+plot_236 <- VlnPlot(samples_236, features = "percent.mt", group.by = "orig.ident", y.max = 100000) +
+  ggtitle("236") +
+  ylab("Mitochondrial Content (%)") +
+  scale_fill_manual(values = c("Parse_236" = "#1F77B4", "TenX_236" = "#FF7F0E"))
+
+plot_237 <- VlnPlot(samples_237, features = "percent.mt", group.by = "orig.ident", y.max = 100000) +
+  ggtitle("237") +
+  ylab("Mitochondrial Content (%)") +
+  scale_fill_manual(values = c("Parse_237" = "#1F77B4", "TenX_237" = "#FF7F0E"))
+
+plot_238 <- VlnPlot(samples_238, features = "percent.mt", group.by = "orig.ident", y.max = 100000) +
+  ggtitle("238") +
+  ylab("Mitochondrial Content (%)") +
+  scale_fill_manual(values = c("Parse_238" = "#1F77B4", "TenX_238" = "#FF7F0E"))
+
+# Combine into grid
+combined_grid <- cowplot::plot_grid(plot_234, plot_236, plot_237, plot_238, ncol = 2)
+
+# Add a title to the grid
+cowplot::plot_grid(
+  cowplot::ggdraw() + cowplot::draw_label("Mitochondrial Content per Cell by Sample and Technology", fontface = "bold", size = 16, hjust = 0.5),
+  combined_grid,
+  ncol = 1,
+  rel_heights = c(0.1, 1)
+)
+```
+
+Gene detection
+
+* Plot a scatterplot showing depth on x axis (reads/cell) and genes per cell on y
+* Saturation plots
+
+```{r}
+#
+FeatureScatter(seu, feature1 = "nCount_RNA", feature2 = "nFeature_RNA", group.by = "tech", pt.size = 1.5) +
+    ggtitle("Gene detection per technology") +
+    xlab("Sequencing Depth (Reads/Cell)") +
+    ylab("Median Genes per Cell") +
+    guides(color = guide_legend(override.aes = list(size = 5))) +
+    scale_color_manual(values = c("Parse" = "#1F77B4", "10x" = "#FF7F0E")) +  # Blue for Parse, Orange for TenX
+    theme(legend.text = element_text(size = 12))
+
+# by individual sample
+FeatureScatter(seu, feature1 = "nCount_RNA", feature2 = "nFeature_RNA", group.by = "orig.ident", pt.size = 1.5) +
+    ggtitle("Gene detection per technology") +
+    xlab("Sequencing Depth (Reads/Cell)") +
+    ylab("Median Genes per Cell") +
+    guides(color = guide_legend(override.aes = list(size = 5))) +
+#    scale_color_manual(values = c("Parse" = "#1F77B4", "10x" = "#FF7F0E")) +  # Blue for Parse, Orange for TenX
+    theme(legend.text = element_text(size = 12))
+
+# orig
+# OG data
+#sc_bmark_orig <- readRDS(file = "data/seu_combined_tech_bmark.rds")
+
+# downsampled data
+#sc_bmark <- readRDS(file = "data/new_combined.TCR_seu.rds")
+#sc_bmark
+
+# Convert Seurat metadata to data frames
+df_orig <- sc_bmark_orig@meta.data
+df_ds   <- seu@meta.data
+
+# ---------- 0) Helper: prepare tidy data ----------
+prep_sample_df <- function(seu, parse_id, tenx_id, feature) {
+  seu <- subset(seu, subset = orig.ident %in% c(parse_id, tenx_id))
+  seu$tech <- factor(ifelse(grepl("^Parse", seu$orig.ident), "Parse", "10x"),
+                     levels = c("Parse", "10x"))
+  data.frame(
+    tech   = seu$tech,
+    sample = gsub(".*_", "", seu$orig.ident),
+    value  = seu@meta.data[[feature]]
+  )
+}
+
+# ---------- Shared colour scale + legend title ----------
+tech_scale <- scale_color_manual(
+  breaks = c("Parse", "10x"),
+  values = c("Parse" = "#1F77B4", "10x" = "#FF7F0E"),
+  labels = c("Parse", "10x"),
+  name   = "Technology"
+)
+
+# ---------- Plot l ----------
+l <- ggplot(df_orig, aes(x = nCount_RNA, y = nFeature_RNA, color = tech)) +
+  geom_point(size = 1.5, alpha = 0.7) +
+  ggtitle("Gene detection") +
+  xlab("Sequencing Depth (Reads/Cell)") +
+  ylab("Median Genes per Cell") +
+  tech_scale +
+  guides(color = guide_legend(override.aes = list(size = 5, alpha = 1))) +  # <- fixes washed-out legend
+  scale_y_continuous(limits = c(0, 15000)) +
+  scale_x_continuous(limits = c(0, 600000)) +
+  theme_classic() +
+  theme(
+    legend.text  = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    plot.title   = element_text(face = "italic", size = 12, hjust = 0.5),
+    legend.position = "bottom"
+  )
+
+# ---------- Plot m ----------
+m <- ggplot(df_ds, aes(x = nCount_RNA, y = nFeature_RNA, color = tech)) +
+  geom_point(size = 1.5, alpha = 0.7) +
+  ggtitle("Downsampled Gene detection") +
+  xlab("Sequencing Depth (Reads/Cell)") +
+  ylab("Median Genes per Cell") +
+  tech_scale +
+  guides(color = guide_legend(override.aes = list(size = 5, alpha = 1))) +  # <- fixes washed-out legend
+  scale_y_continuous(limits = c(0, 15000)) +
+  # scale_x_continuous(limits = c(0, 600000)) +
+  theme_classic() +
+  theme(
+    legend.text  = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    plot.title   = element_text(face = "italic", size = 12, hjust = 0.5),
+    legend.position = "bottom"
+  )
+
+#
+fig_lm <- (l | m) +
+  plot_layout(guides = "collect") &
+  theme(legend.position = "none")
+
+fig_lm
+
+
+
+```
+
+Calculate and plot Highly variable genes (HVGs)
+
+```{r}
+# HVG's
+# Parse data
+seu_parse[["percent.mt"]] <- PercentageFeatureSet(seu_parse, pattern = "^MT-")
+
+VlnPlot(seu_parse, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+VlnPlot(seu_parse, features = c("gene_count"), ncol = 1)
+VlnPlot(seu_parse, features = c("nCount_RNA"), ncol = 1, log = TRUE) + ggtitle("Transcript count per sample (log scale)")
+VlnPlot(seu_parse, features = c("tscp_count"), ncol = 1)
+
+plot1 <- FeatureScatter(seu_parse, feature1 = "nCount_RNA", feature2 = "percent.mt")
+plot2 <- FeatureScatter(seu_parse, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+plot1 + plot2
+
+seu_parse <- NormalizeData(seu_parse, normalization.method = "LogNormalize", scale.factor = 10000)
+seu_parse <- FindVariableFeatures(seu_parse, selection.method = "vst", nfeatures = 2000)
+top10_parse <- head(VariableFeatures(seu_parse), 10)
+
+# 10x data
+seu_10x[["percent.mt"]] <- PercentageFeatureSet(seu_10x, pattern = "^MT-")
+
+VlnPlot(seu_10x, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+VlnPlot(seu_10x, features = c("gene_count"), ncol = 1)
+VlnPlot(seu_10x, features = c("nCount_RNA"), ncol = 1, log = TRUE) + ggtitle("Transcript count per sample (log scale)")
+VlnPlot(seu_10x, features = c("tscp_count"), ncol = 1)
+
+plot3 <- FeatureScatter(seu_10x, feature1 = "nCount_RNA", feature2 = "percent.mt")
+plot4 <- FeatureScatter(seu_10x, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+plot3 + plot4
+
+seu_10x <- NormalizeData(seu_10x, normalization.method = "LogNormalize", scale.factor = 10000)
+seu_10x <- FindVariableFeatures(seu_10x, selection.method = "vst", nfeatures = 2000)
+top10_10x <- head(VariableFeatures(seu_10x), 10)
+```
+
+Clonal length plots
+
+* Plot per TCR chain
+
+```{r}
+# set theme
+clonal_theme <- theme_classic() +
+  theme(
+    legend.text      = element_text(size = 10),
+    legend.title     = element_text(size = 10),
+    plot.title       = element_text(face = "italic", size = 10, hjust = 0.5),
+    legend.position  = "bottom"
+  )
+
+## Plot A — Both chains
+a <- clonalLength(
+  seu, 
+  cloneCall = "aa", 
+  chain     = "both", 
+  group.by  = "tech", 
+  scale     = FALSE
+) +
+  scale_fill_manual(
+    name   = "Technology",   # <<< legend title
+    values = c("Parse" = "#1F77B4", "10x" = "#FF7F0E")
+  ) +
+  ggtitle("CDR3 Length Distributions per technology for both TCR chains.") +
+  clonal_theme
+
+## Plot B — TRA
+b <- clonalLength(
+  seu, 
+  cloneCall = "aa", 
+  chain     = "TRA", 
+  group.by  = "tech", 
+  scale     = FALSE
+) +
+  scale_fill_manual(
+    name   = "Technology",
+    values = c("Parse" = "#1F77B4", "10x" = "#FF7F0E")
+  ) +
+  ggtitle("TCRα – Distribution of CDR3 Amino Acid Lengths") +
+  clonal_theme
+
+## Plot C — TRB
+c <- clonalLength(
+  seu, 
+  cloneCall = "aa", 
+  chain     = "TRB", 
+  group.by  = "tech", 
+  scale     = FALSE
+) +
+  scale_fill_manual(
+    name   = "Technology",
+    values = c("Parse" = "#1F77B4", "10x" = "#FF7F0E")
+  ) +
+  ggtitle("TCRβ – Distribution of CDR3 Amino Acid Lengths") +
+  clonal_theme
+
+
+## Final figure layout: A on top, B & C on bottom
+fig_clonal_lengths <- (
+  a / (b | c)
+) +
+  plot_layout(
+    heights = c(1, 1),
+    guides = "collect"   # combined legend
+  ) +
+  plot_annotation(
+    tag_levels = "A"
+  ) &
+  theme(
+    plot.tag   = element_text(face = "bold"),
+    legend.position = "bottom"
+  )
+
+fig_clonal_lengths
+
+## export
+# ggsave(
+#     filename = "clonal_lengths_all.pdf",
+#     plot = fig_clonal_lengths,
+#     device = cairo_pdf,      # embedded fonts
+#     width = 8,
+#     height = 7,
+#     units = "in"
+# )
+```
+
